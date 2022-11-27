@@ -1,0 +1,37 @@
+{
+  "name": "crypto-bot_v3-back-end",
+  "version": "1.0.0",
+  "description": "Back-end API endpoint for third version of trading bot.",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "start": "node src/index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/larissaatavares/crypto-bot-back-end.git"
+  },
+  "author": "Larissa Tavares",
+  "license": "UNLICENSED",
+  "bugs": {
+    "url": "https://github.com/larissaatavares/crypto-bot-back-end/issues"
+  },
+  "homepage": "https://github.com/larissaatavares/crypto-bot-back-end#readme",
+  "devDependencies": {
+    "@babel/plugin-syntax-import-assertions": "^7.20.0",
+    "@types/jest": "^29.2.3",
+    "jest": "^29.3.1",
+    "socket.io-client": "^4.5.4"
+  },
+  "dependencies": {
+    "axios": "^1.2.0",
+    "bcrypt": "^5.1.0",
+    "body-parser": "^1.20.1",
+    "ccxt": "^2.2.15",
+    "express": "^4.18.2",
+    "mysql2": "^2.3.3",
+    "sequelize": "^6.25.8",
+    "socket.io": "^4.5.4"
+  }
+}
