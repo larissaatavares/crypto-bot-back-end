@@ -3,6 +3,8 @@ import fs from 'fs';
 import path from 'path';
 import readline from 'readline';
 import Stream from 'stream';
+import { getMilliseconds } from '../utils/index.js';
+import sortHistoricalData from '../utils/historicalDataSorter.js';
 
 /**
  * These methods work with the default behavior of ccxt.
@@ -10,13 +12,11 @@ import Stream from 'stream';
  * exchange, the child class will wrap and adapt it. 
  * In the perfect case, nothing is overriden.
  */
-export default class PublicExchange {
+class PublicExchange {
     name;
     #exchange; 
     #whileLoopFlag = true;
-    #options = {
-        enableRateLimit: true
-    };
+    #options = {};
     #subscribers = {
         orderbook: {}, // key: id String, value: callback Function
         ticker: {},    
@@ -24,14 +24,14 @@ export default class PublicExchange {
         candles: {}    
     };
 
-    constructor(name, load = true) {
+    #getMilliseconds = getMilliseconds;
+
+    constructor(name) {
         this.name = name;
         if(ccxt.pro.exchanges.includes(name))
             this.#exchange = new ccxt.pro[name](this.#options); 
         else 
             this.#exchange = new ccxt[name](this.#options); 
-       
-        if(load) this.loadMarkets();
     }
 
     /**
@@ -122,7 +122,8 @@ export default class PublicExchange {
         const originalSince = since;
         
         for(const pair of pairs) {
-            const filePath = path.resolve(`./historicalData/${this.name}-${pair.replace('/', '_')}-${this.#getInterval(timeframe)}.csv`); 
+            const fileName = `${this.name}-${pair.replace('/', '_')}-${this.#getInterval(timeframe)}`;
+            const filePath = path.resolve(`./historicalData/${fileName}.csv`); 
             let exists;
             try {
                 await fs.promises.access(filePath);
@@ -132,7 +133,7 @@ export default class PublicExchange {
             }
             
             if(!exists){
-                const header = 'date, open, high, low, close, volume\n';
+                const header = 'date,open,high,low,close,volume\n';
                 await fs.promises.appendFile(filePath, header)
             } else {
                 const inStream = fs.createReadStream(filePath);
@@ -149,7 +150,7 @@ export default class PublicExchange {
             }
 
             while(since < this.#exchange.milliseconds()) {
-                let candles = await this.#exchange.fetchOHLCV(pair, this.#getInterval(timeframe), since);
+                let candles = await this.#exchange.fetchOHLCV(pair, this.#getInterval(timeframe), since, 1000);
                 candles.sort((a, b) => a[0]- b[0]);
                 
                 if(candles.length > 0){
@@ -161,11 +162,12 @@ export default class PublicExchange {
                     if(nowDate - lastDate < interval) candles.pop();
 
                     candles.forEach(async c => {
-                        const data = `${c[0]}, ${c[1]}, ${c[2]}, ${c[3]}, ${c[4]}, ${c[5]}\n`;
+                        const data = `${c[0]},${c[1]},${c[2]},${c[3]},${c[4]},${c[5]}\n`;
                         await fs.promises.appendFile(filePath, data);
                     });
                 } else {
                     since = originalSince;
+                    sortHistoricalData(fileName);
                     break;
                 }
             }
@@ -177,7 +179,7 @@ export default class PublicExchange {
      * @param {String} prop 
      * @param {Function} callback 
      */
-    subscribe(id, prop, callback) {
+    subscribe(id, prop, callback) { // change tthis or strat notifier to match each other
         const alreadySubscribed = Object.keys(this.#subscribers[prop]).find(existingId => existingId === id);
         if(!alreadySubscribed) this.#subscribers[prop][id] = callback;
     }
@@ -196,20 +198,6 @@ export default class PublicExchange {
      */
     notify(prop) {
         Object.values(this.#subscribers[prop]).forEach(callback => callback());
-    }
-
-    /**
-     * 
-     * @param {{unit:String,amount:Number}} interval 
-     * @returns {Number}
-     */
-    #getMilliseconds(interval) {
-        const time = {
-            second: 1000,
-            minute: 60 * 1000,
-            hour: 60 * 60 * 1000
-        }
-        return time[interval.unit] * interval.amount;
     }
 
     /**
@@ -235,7 +223,33 @@ export default class PublicExchange {
             this.minimums[pair] = this.#exchange.markets[pair].limits.amount;            
     }
 
+    hasNeededMethods() {
+        const testedMethods = [
+            'fetchOrderBook',    
+            'fetchTrades',
+            'fetchTicker',
+            'fetchOHLCV'
+        ];
+        return testedMethods.every(method => {
+            return Boolean(this.#exchange.has[method]);
+        });
+    }
+
     getExchange() {
         return this.#exchange;
+    }
+}
+
+export default class PublicExchangeFactory {
+    static async create(name) {
+        const newExchange = new PublicExchange(name);
+        if(!newExchange.hasNeededMethods()) return null;
+        try {
+            await newExchange.loadMarkets();
+            return newExchange;
+        } catch(error) {
+            console.error('Couldn\'t load markets', error.message);
+            return null;
+        }
     }
 }
