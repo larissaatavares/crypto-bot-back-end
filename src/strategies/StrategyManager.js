@@ -1,53 +1,68 @@
-import OCOOrder from './OCOOrder.js';
-import TrailingOrder from './TrailingOrder.js';
-import StoplossOrder from './StoplossOrder.js';
-import MarketOrder from './MarketOrder.js';
-import BaseStrategy from './BaseStrategy.js';
-
 import Runtime from '../utils/Runtime.js';
 import Strategy from '../database/Strategy.js';
-
-class STRATEGY_CLASSES {
-    static OCOOrder = OCOOrder;
-    static TrailingOrder = TrailingOrder;
-    static StoplossOrder = StoplossOrder;
-    static MarketOrder = MarketOrder;
-    static BaseStrategy = BaseStrategy;
-}
+import STRATEGY_CLASSES from './STRATEGY_CLASSES.js';
 
 class StrategyManager {
     static #strategies = {}; // key: id, value: strategy object
+    static #report = {}; // key: id, value: report object
+
+    static async startAll() {
+        const strats = await Strategy.findAll();
+        strats.forEach(async params => {
+            let data = JSON.parse(params.data);
+            data.id = params.id;
+            await this.create(data, false);
+        });
+    }
 
     /**
-     * 
-     * @param {{id:undefined,userId:String,type:String,runtime:String,interval?:{unit:String,amount:Number}}} params 
+     * Creates strategy and returns id.
+     * @param {{userId:String,type:String,runtime:String}} params 
      * @returns {String} - Newly generated Strategy Id.
      */
-    static async create(params) {
-        // do it different for backtests
+    static async create(params, isNew = true) {
         if(params.runtime !== 'back') {
-            const strategyDb = await Strategy.create({
-                data: JSON.stringify(params),
-                userId: params.userId,
-                type: params.type
-            });
-            params.id = strategyDb.id;
-            let strategyObj = new STRATEGY_CLASSES[type](params);
-            this.#strategies[params.id] = strategyObj;
+            if(isNew){
+                const strategyDb = await Strategy.create({
+                    data: JSON.stringify(params),
+                    userId: params.userId,
+                    type: params.type
+                });
+                params.id = strategyDb.id;    
+            }
+            const strategyObj = new STRATEGY_CLASSES[params.type](params);
+            this.#strategies[params.id] = strategyObj; 
             Runtime.createJob(strategyObj);
             return params.id;
         } else {
-            Runtime.createJob(params);
+            const id = Runtime.createJob(params);
+            this.#strategies[id] = params;
+            return id;
         }
     }
 
+    /**
+     * Edit and save changes.
+     * @param {String} strategyId
+     * @param {[[key,value]]} params 
+     */
     static edit(strategyId, params) {
+        const strategy = this.getById(strategyId);
+        if(strategy.runtime === 'back') return false;
         this.#strategies[strategyId].edit(params);
+        return true;
     }
 
-    static delete(strategyId) {
-        const report = Runtime.terminateJob(this.#strategies[strategyId]);
-        return report;
+    static shutdown() {
+        Object.values(this.#strategies).forEach(strategy => {
+            Runtime.shutdown(strategy);
+        });
+    }
+
+    static async delete(strategyId) {
+        Runtime.terminateJob(this.#strategies[strategyId]);
+        const strategy = this.getById(strategyId);
+        if(strategy.runtime !== 'back') await strategy.terminate();
     }
 
     static getByUser(userId) {
@@ -64,16 +79,14 @@ class StrategyManager {
                 return this.#strategies[id];
     }
 
-    // Finish
-    static setReport() {
-
+    static addReport(data) {
+        this.#report[data.id] = data.report;
     }
 
-    // Change
     static getReport(strategyId) {
-        return this.#strategies[strategyId].report();
+        return this.#report[strategyId];
+        // TODO: in the future, will save reports in database
     }
 }
 
-export { STRATEGY_CLASSES };
 export default StrategyManager;

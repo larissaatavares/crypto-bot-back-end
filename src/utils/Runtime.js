@@ -15,17 +15,17 @@ class Tick {
     static #getCronTime(interval) {
         switch(interval.unit) {
             case 'second':    return `*/${interval.amount} * * * * *`;
-            case 'minute':    return `* */${interval.amount} * * * *`;
-            case 'hour':      return `* * */${interval.amount} * * *`;
-            case 'day-month': return `* * * */${interval.amount} * *`;
-            case 'month':     return `* * * * */${interval.amount} *`;
-            case 'day-week':  return `* * * * * */${interval.amount}`;
+            case 'minute':    return `0 */${interval.amount} * * * *`;
+            case 'hour':      return `0 0 0/${interval.amount} * * *`;
+            case 'day-month': return `0 0 0 0/${interval.amount} * *`;
+            case 'month':     return `0 0 0 0 0/${interval.amount} *`;
+            case 'day-week':  return `0 0 0 0 0 0/${interval.amount}`;
         }
     }
 
     static createJob(strategyObject) {
-        this.#jobs[strategyObject.ID] = new CronJob({
-            cronTime: this.#getCronTime(strategyObject.interval),
+        this.#jobs[strategyObject.id] = new CronJob({
+            cronTime: this.#getCronTime(strategyObject.cronSettings),
             context: strategyObject.getContext(),
             onTick: strategyObject.run,
             start: true
@@ -33,25 +33,26 @@ class Tick {
     }
 
     static terminateJob(strategyObject) {
-        this.#jobs[strategyObject.ID].stop();
-        let report = strategyObject.report();
-        strategyObject.terminate();
-        delete this.#jobs[strategyObject.ID];
-        return report;
+        this.#jobs[strategyObject.id].stop();
+        const report = strategyObject.report();
+        StrategyManager.addReport({ id: strategyObject.id, report });
+        delete this.#jobs[strategyObject.id];
     }
 }
 
 class Live {
     static createJob(strategyObject) {
-        const { ID, propToListen, run } = strategyObject;
+        const { id, propToListen, run } = strategyObject;
         const exchange = ExchangeManager.getPublic();
-        exchange.subscribe(ID, propToListen, run.bind(strategyObject));
+        exchange.subscribe(id, propToListen, run.bind(strategyObject));
     }
 
-    static terminateJob(strategyObject){
-        const { ID, propToListen } = strategyObject;
+    static terminateJob(strategyObject){ 
+        const { id, propToListen, run } = strategyObject;
+        const report = strategyObject.report();
+        StrategyManager.addReport({ id, report });        
         const exchange = ExchangeManager.getPublic();
-        exchange.unsubscribe(ID, propToListen);
+        exchange.unsubscribe(id, propToListen, run.bind(strategyObject))
     }
 }
 
@@ -65,15 +66,15 @@ class Backtest {
 
     static createJob(params) {
         const hasThreadAvailable = () => this.#jobIds().length < os.cpus().length - 1;
-        if(!params.ID) params.ID = Date.now() + this.#incrementalIds++;
+        if(!params.id) params.id = String(Date.now() + this.#incrementalIds++);
 
         if(hasThreadAvailable()) {
             const worker = new Worker('./src/utils/worker.js', { workerData: params });
-            this.#workers[params.ID] = worker;
+            this.#workers[params.id] = worker;
 
             worker.on('exit', () => {
-                console.log(`Worker ${params.ID} finished.`);
-                delete this.#workers[params.ID];
+                console.log(`Worker ${params.id} finished.`);
+                delete this.#workers[params.id];
                 while(hasThreadAvailable() && this.#jobIds().length) {
                     const id = Object.keys(this.#jobs)[0];
                     const stratParams = this.#jobs[id];
@@ -84,13 +85,15 @@ class Backtest {
 
             worker.on('message', msg => {
                 if(msg.type == 'report'){
-                    StrategyManager.setReport(msg.result);
+                    StrategyManager.addReport({ id: params.id, report: msg.result });
                 }
             });
 
-        } else if(!this.#jobIds().includes(params.ID)){
-            this.#jobs[params.ID] = params;
+        } else if(!this.#jobIds().includes(params.id)){
+            this.#jobs[params.id] = params;
         }
+
+        return params.id;
     }
 
     static terminateJob(id) {
@@ -107,11 +110,17 @@ export default class Runtime {
     static createJob(strategyObject) {
         if(strategyObject.runtime === 'live') Live.createJob(strategyObject);
         else if(strategyObject.runtime === 'tick') Tick.createJob(strategyObject);
-        else if(strategyObject.runtime === 'back') Backtest.createJob(strategyObject);
+        else if(strategyObject.runtime === 'back') return Backtest.createJob(strategyObject);
     }
     static terminateJob(strategyObject) {
         if(strategyObject.runtime === 'live') Live.terminateJob(strategyObject);
         else if(strategyObject.runtime === 'tick') Tick.terminateJob(strategyObject);
-        else if(strategyObject.runtime === 'back') Backtest.terminateJob(strategyObject);        
+        else if(strategyObject.runtime === 'back') Backtest.terminateJob(strategyObject);  
+        if(strategyObject.runtime !== 'back') strategyObject.terminate();
+    }
+    static shutdown(strategyObject) {
+        if(strategyObject.runtime === 'live') Live.terminateJob(strategyObject);
+        else if(strategyObject.runtime === 'tick') Tick.terminateJob(strategyObject);
+        else if(strategyObject.runtime === 'back') Backtest.terminateJob(strategyObject);     
     }
 }
