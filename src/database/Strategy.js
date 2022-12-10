@@ -31,6 +31,12 @@ Strategy.init({
     tableName: 'strategies'
 });
 
+Strategy.beforeCreate(strategy => {
+    let data = JSON.parse(strategy.data);
+    data.id = strategy.id;
+    strategy.data = JSON.stringify(data);
+});
+
 await Strategy.sync();
 
 export default Strategy;
