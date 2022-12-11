@@ -19,7 +19,10 @@ User.init({
         type: DataTypes.STRING,
         allowNull: false
     },
-    exchangeAuth: {
+    exchangeAuthProd: {
+        type: DataTypes.JSON
+    },
+    exchangeAuthTest: {
         type: DataTypes.JSON
     },
     sessionToken: {
