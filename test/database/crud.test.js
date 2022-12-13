@@ -14,7 +14,7 @@ let userId;
 
 describe('Test database.', () => {
     test('Create new User.', async () => {
-        const exchangeAuth = JSON.stringify({
+        const exchangeAuthProd = JSON.stringify({
             binance: {
                 APIKey: '98434168',
                 secret: '39665732'
@@ -24,7 +24,7 @@ describe('Test database.', () => {
         await User.create({
             email,
             password: '12345',
-            exchangeAuth
+            exchangeAuthProd
         });                           
 
         const result = await User.findOne({ where: { email }});
@@ -37,7 +37,8 @@ describe('Test database.', () => {
             id: expect.any(String),
             email,
             password: isRightPassword ? result.password : false,
-            exchangeAuth,
+            exchangeAuthProd,
+            exchangeAuthTest: null,
             sessionToken: null,
             createdAt: expect.any(Date),
             updatedAt: expect.any(Date)
@@ -45,7 +46,7 @@ describe('Test database.', () => {
     });
 
     test('Create new Strategy.', async () => {
-        const data = JSON.stringify({
+        let data = JSON.stringify({
             entryParam: 50,
             exitParam: 80,
             indicatorsToUse: [ 'RSI', 'SMA', 'BollingerBands' ]
@@ -59,6 +60,9 @@ describe('Test database.', () => {
         });
 
         const result = await Strategy.findOne({ where: { type }});
+        data = JSON.parse(data);
+        data.id = result.id;
+        data = JSON.stringify(data);
 
         expect(result.dataValues).toEqual({
             id: expect.any(String),

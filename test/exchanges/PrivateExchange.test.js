@@ -1,4 +1,4 @@
-import PrivateExchange from "../../src/exchanges/PrivateExchange";
+import PrivateExchangeFactory, { PrivateExchange } from "../../src/exchanges/PrivateExchange";
 import { jest } from '@jest/globals';
 import User from '../../src/database/User.js';
 import config from '../../config.json' assert { type: 'json' }; // use .auth
@@ -53,8 +53,9 @@ afterAll(async () => {
 });
 
 test('PrivateExchange.create()', async () => {
-    exchange = await PrivateExchange.create('binance', userId, true);
+    exchange = await PrivateExchangeFactory.create('binance', userId, true);
     expect(exchange).not.toBeNull();
+    expect(exchange).toBeInstanceOf(PrivateExchange);
 });
 
 test('Precision methods', () => {
