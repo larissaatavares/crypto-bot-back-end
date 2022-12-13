@@ -240,6 +240,7 @@ class PublicExchange {
     }
 }
 
+export { PublicExchange };
 export default class PublicExchangeFactory {
     static async create(name) {
         const newExchange = new PublicExchange(name);
