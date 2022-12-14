@@ -43,6 +43,9 @@ class PublicExchange {
      */
     async request(pairs, method, prop, isAdapter){
         if(typeof pairs === 'string') pairs = [pairs];
+        if(!(pairs instanceof Array)) return null;
+        pairs = pairs.filter(pair => this.pairs.includes(pair));
+        if(pairs.length === 0) return null;
 
         const res = await Promise.all(pairs.map(pair => {
             return this.#exchange[method](pair);
@@ -52,7 +55,7 @@ class PublicExchange {
                 this.#exchange[prop][pairs[index]] = item;
             });
         } else {
-            this.notify(prop);
+            //this.notify(prop);
         }
         return this.#exchange[prop];
     }
