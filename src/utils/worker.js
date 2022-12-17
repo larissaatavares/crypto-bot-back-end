@@ -61,6 +61,10 @@ class Cache { // May stop being static if I ever need another one of those.
     }
 }
 
+parentPort.on('message', async msg => {
+    if(msg === 'terminate') await exit();
+});
+
 for await (const line of file.readLines()) {
     const items = line.split(',').map(val => Number(val));
     if(isNaN(items[0])) continue;
@@ -87,7 +91,7 @@ for await (const line of file.readLines()) {
     }
 }
 
-exit();
+await exit();
 
 async function exit() {    
     const result = strategyObject.report();
@@ -98,7 +102,3 @@ async function exit() {
     console.timeEnd('Time');
     process.exit();
 }
-
-parentPort.on('message', async msg => {
-    if(msg === 'terminate') await exit();
-});

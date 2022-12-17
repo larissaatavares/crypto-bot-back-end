@@ -23,7 +23,8 @@ class Tick {
         }
     }
 
-    static createJob(strategyObject) {
+    static async createJob(strategyObject) {
+        await strategyObject.init();
         this.#jobs[strategyObject.id] = new CronJob({
             cronTime: this.#getCronTime(strategyObject.cronSettings),
             context: strategyObject.getContext(),
@@ -41,18 +42,26 @@ class Tick {
 }
 
 class Live {
-    static createJob(strategyObject) {
-        const { id, propToListen, run } = strategyObject;
-        const exchange = ExchangeManager.getPublic();
-        exchange.subscribe(id, propToListen, run.bind(strategyObject));
+    static async createJob(strategyObject) {
+        const methods = {
+            tickers: 'watchTicker',
+            trades: 'watchTradeHistory',
+            ohlcvs: 'watchCandles'
+        }
+        const { id, propToListen, pair } = strategyObject;
+        const exchange = await ExchangeManager.getPublic(strategyObject.exchange);
+        await exchange[methods[propToListen]](pair);
+        await strategyObject.init();
+        exchange.subscribe(id, propToListen, pair, () => strategyObject.run());
     }
 
     static terminateJob(strategyObject){ 
-        const { id, propToListen, run } = strategyObject;
+        const { id, propToListen, pair } = strategyObject;
         const report = strategyObject.report();
         StrategyManager.addReport({ id, report });        
-        const exchange = ExchangeManager.getPublic();
-        exchange.unsubscribe(id, propToListen, run.bind(strategyObject))
+        ExchangeManager.getPublic(strategyObject.exchange).then(exchange => {
+            exchange.unsubscribe(id, propToListen, pair);
+        });
     }
 }
 
@@ -96,7 +105,7 @@ class Backtest {
         return params.id;
     }
 
-    static terminateJob(id) {
+    static terminateJob(id) { // not working
         if(this.#jobIds().includes(id)) {
             delete this.#jobs[id];
         } else if(this.#workerIds().includes(id)){
@@ -107,20 +116,20 @@ class Backtest {
 }
 
 export default class Runtime {
-    static createJob(strategyObject) {
-        if(strategyObject.runtime === 'live') Live.createJob(strategyObject);
-        else if(strategyObject.runtime === 'tick') Tick.createJob(strategyObject);
+    static async createJob(strategyObject) {
+        if(strategyObject.runtime === 'live') await Live.createJob(strategyObject);
+        else if(strategyObject.runtime === 'tick') await Tick.createJob(strategyObject);
         else if(strategyObject.runtime === 'back') return Backtest.createJob(strategyObject);
     }
     static terminateJob(strategyObject) {
         if(strategyObject.runtime === 'live') Live.terminateJob(strategyObject);
         else if(strategyObject.runtime === 'tick') Tick.terminateJob(strategyObject);
-        else if(strategyObject.runtime === 'back') Backtest.terminateJob(strategyObject);  
+        else if(strategyObject.runtime === 'back') Backtest.terminateJob(strategyObject.id);  
         if(strategyObject.runtime !== 'back') strategyObject.terminate();
     }
     static shutdown(strategyObject) {
         if(strategyObject.runtime === 'live') Live.terminateJob(strategyObject);
         else if(strategyObject.runtime === 'tick') Tick.terminateJob(strategyObject);
-        else if(strategyObject.runtime === 'back') Backtest.terminateJob(strategyObject);     
+        else if(strategyObject.runtime === 'back') Backtest.terminateJob(strategyObject.id);     
     }
 }
