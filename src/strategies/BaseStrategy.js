@@ -20,26 +20,32 @@ export default class BaseStrategy {
         this.interval = params.interval; // 'object' { unit: 'string', amount: 'number' }, eg: { unit: 'minute', amount: 5 }
         this.exchange = params.exchange; // 'string', eg: 'binance'
         this.pair = params.pair;         // 'string', eg: 'BTC/USDT'
-        this.subscribers = [];           // array of EventEmitters
 
         // Optional props common to all.
         this.start = params.start || 0;    // 'number' timestamp in milliseconds
         this.end = params.end || Infinity; // 'number' timestamp in milliseconds
         this.period = params.period || 14; // 'number'
         this.cronSettings = params.cronSettings || params.interval;
+        this.propToListen = params.propToListen;
+        this.isTest = params.isTest || false;
 
         // Functions that can't be stringified.
-        this.privateExchange = ExchangeManager.getPrivate();
-        this.publicExchange = ExchangeManager.getPublic();
+        this.privateExchange;
+        this.publicExchange;
         this.#RSI = new indicators.RSI({ values: [], period: this.period });
+    }
 
-        this.changeling = params.changeling;
+    async init() {
+        this.privateExchange = await ExchangeManager.getPrivate(this.exchange, this.userId, this.isTest);
+        this.publicExchange = await ExchangeManager.getPublic(this.exchange, this.isTest);
     }
 
     run(data) { 
+        if(this.runtime !== 'back') console.log(this.runtime, this.propToListen);                    
         if(data) {
             this.#rsi = this.#RSI.nextValue(data.candle.close);
             this.#date = data.candle.date;
+            if(this.runtime !== 'back') console.log(this.runtime);
         } 
     } 
 
@@ -66,7 +72,6 @@ export default class BaseStrategy {
         });
         strategy.data = JSON.stringify(clone);
         strategy.save();
-        this.notify(params);
     }
 
     async terminate() { 
@@ -74,12 +79,6 @@ export default class BaseStrategy {
             const strategy = await Strategy.findByPk(this.id);
             return await strategy.destroy();
         }
-    } 
-
-    notify(update) { 
-        this.subscribers.forEach(subscriber => {
-            subscriber.emit(this.id, update);
-        });
     } 
 
     report() { 

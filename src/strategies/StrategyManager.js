@@ -17,8 +17,22 @@ class StrategyManager {
 
     /**
      * Creates strategy and returns id.
-     * @param {{userId:String,type:String,runtime:String}} params 
-     * @returns {String} - Newly generated Strategy Id.
+     * @param {
+     *  {
+     *   userId: string,
+     *   type: string,
+     *   runtime: string,
+     *   interval: { unit: string, amount: number },
+     *   exchange: string,
+     *   pair: string,
+     *   start?: number,
+     *   end?: number,
+     *   period?: number,
+     *   propToListen?: string,
+     *   cronSettings?: { unit: string, amount: number }
+     *  }
+     * } params 
+     * @returns {string} - Newly generated Strategy Id.
      */
     static async create(params, isNew = true) {
         if(params.runtime !== 'back') {
@@ -32,10 +46,10 @@ class StrategyManager {
             }
             const strategyObj = new STRATEGY_CLASSES[params.type](params);
             this.#strategies[params.id] = strategyObj; 
-            Runtime.createJob(strategyObj);
+            await Runtime.createJob(strategyObj);
             return params.id;
         } else {
-            const id = Runtime.createJob(params);
+            const id = await Runtime.createJob(params);
             this.#strategies[id] = params;
             return id;
         }
@@ -43,26 +57,32 @@ class StrategyManager {
 
     /**
      * Edit and save changes.
-     * @param {String} strategyId
+     * @param {string} strategyId
      * @param {[[key,value]]} params 
      */
-    static edit(strategyId, params) {
+    static async edit(strategyId, params) {
         const strategy = this.getById(strategyId);
         if(strategy.runtime === 'back') return false;
-        this.#strategies[strategyId].edit(params);
+        await this.#strategies[strategyId].edit(params);
         return true;
     }
 
-    static shutdown() {
-        Object.values(this.#strategies).forEach(strategy => {
-            Runtime.shutdown(strategy);
-        });
+    static shutdown(strategyId) {
+        if(strategyId){
+            let strategy = this.getById(strategyId);
+            Runtime.shutdown(strategy); 
+        } else {
+            Object.values(this.#strategies).forEach(strategy => {
+                Runtime.shutdown(strategy);
+            });
+        }
     }
 
     static async delete(strategyId) {
         Runtime.terminateJob(this.#strategies[strategyId]);
         const strategy = this.getById(strategyId);
         if(strategy.runtime !== 'back') await strategy.terminate();
+        delete this.#strategies[strategyId];
     }
 
     static getByUser(userId) {
@@ -77,6 +97,7 @@ class StrategyManager {
         for(const id in this.#strategies) 
             if(strategyId === id) 
                 return this.#strategies[id];
+        return null;
     }
 
     static addReport(data) {
