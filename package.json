@@ -13,7 +13,7 @@
     "url": "git+https://github.com/larissaatavares/crypto-bot-back-end.git"
   },
   "author": "Larissa Tavares",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "bugs": {
     "url": "https://github.com/larissaatavares/crypto-bot-back-end/issues"
   },
