@@ -1,22 +1,22 @@
-import PublicExchange from './PublicExchange.js';
-import PrivateExchange from './PrivateExchange.js';
+import PublicExchangeFactory, { PublicExchange } from './PublicExchange.js';
+import PrivateExchangeFactory, { PrivateExchange } from './PrivateExchange.js';
 
 class ExchangeManager {
     static #public = {};
     static #private = {};
+    static #incrementalIds = 0;
 
     /**
      * Creates or returns existing public exchange.
      * @param {string} name
      * @returns {PublicExchange}
      */
-    static async getPublic(name) {
-        if(this.#public[name]) {
-            return this.#public[name];
-        } else {
-            this.#public[name] = await PublicExchange.create(name);
-            return this.#public[name];
+    static async getPublic(name, isTest) {
+        if(!this.#public[name]) {
+            this.#public[name] = await PublicExchangeFactory.create(name, isTest);
+            this.#public[name].id = String(Date.now() + this.#incrementalIds++);
         }
+        return this.#public[name];
     }   
 
     /**
@@ -29,12 +29,11 @@ class ExchangeManager {
     static async getPrivate(name, userId, isTest = false) {
         const type =  isTest ? 'test' : 'prod';
         const key = name + '_' + userId + '_' + type;
-        if(this.#private[key]) {
-            return this.#private[key];
-        } else {
-            this.#private[key] = await PrivateExchange.create(name, userId, isTest);
-            return this.#private[key];
+        if(!this.#private[key]) {
+            this.#private[key] = await PrivateExchangeFactory.create(name, userId, isTest);
+            this.#private[key].id = String(Date.now() + this.#incrementalIds++);
         }
+        return this.#private[key];
     }
 
     static count(type) {

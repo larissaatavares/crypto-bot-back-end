@@ -17,21 +17,29 @@ class PublicExchange {
     #exchange; 
     #whileLoopFlag = true;
     #options = {};
-    #subscribers = {
-        orderbook: {}, // key: id String, value: callback Function
-        ticker: {},    
+    #subscribers = { 
+        // key: pair, value: { key: id String, value: callback Function }
+        tickers: {},    
         trades: {},    
-        candles: {}    
+        ohlcvs: {}    
     };
 
     #getMilliseconds = getMilliseconds;
 
-    constructor(name) {
+    constructor(name, isTest = false) {
         this.name = name;
         if(ccxt.pro.exchanges.includes(name))
             this.#exchange = new ccxt.pro[name](this.#options); 
         else 
             this.#exchange = new ccxt[name](this.#options); 
+
+        // will hold data meant for og props from the library, so they 
+        // can turn into gets/sets alerting subscribers to it's changes
+        this.#exchange.realTickers = {};
+        this.#exchange.realTrades = {};
+        this.#exchange.realOhlcvs = {};
+
+        if(isTest) this.#exchange.setSandboxMode(true);
     }
 
     /**
@@ -54,31 +62,41 @@ class PublicExchange {
             res.forEach((item, index) => {
                 this.#exchange[prop][pairs[index]] = item;
             });
-        } else {
-            //this.notify(prop);
-        }
+        } 
         return this.#exchange[prop];
     }
     async iterator(pairs, method, prop) {
-        while(this.#whileLoopFlag) {
+        while(this.#whileLoopFlag) 
             await this.request(pairs, method, prop, true);
-            this.notify(prop);
-        }        
     }
-
+    /**
+     * @param {string|[string]} pairs 
+     */
     async getOrderbook(pairs) {
         return this.request(pairs, 'fetchOrderBook', 'orderbooks');
     } 
+    /**
+     * @param {string|[string]} pairs 
+     */    
     async getTradeHistory(pairs) {
         return this.request(pairs, 'fetchTrades', 'trades');
     } 
+    /**
+     * @param {string|[string]} pairs 
+     */    
     async getTicker(pairs) {
         return this.request(pairs, 'fetchTicker', 'tickers');
     } 
+    /**
+     * @param {string|[string]} pairs 
+     */
     async getCandles(pairs) {
         return this.request(pairs, 'fetchOHLCV', 'ohlcvs');
     } 
 
+    /**
+     * @param {string|[string]} pairs 
+     */
     async watchOrderbook(pairs) {
         if(this.#exchange.has['watchOrderBook']){
             return this.request(pairs, 'watchOrderBook', 'orderbooks');
@@ -87,6 +105,9 @@ class PublicExchange {
             return this.#exchange.orderbooks;
         }
     } 
+    /**
+     * @param {string|[string]} pairs 
+     */    
     async watchTradeHistory(pairs) {
         if(this.#exchange.has['watchTrades']){
             return this.request(pairs, 'watchTrades', 'trades');
@@ -95,6 +116,9 @@ class PublicExchange {
             return this.#exchange.trades;
         }
     } 
+    /**
+     * @param {string|[string]} pairs 
+     */    
     async watchTicker(pairs) {
         if(this.#exchange.has['watchTicker']){
             return this.request(pairs, 'watchTicker', 'tickers');
@@ -103,6 +127,9 @@ class PublicExchange {
             return this.#exchange.tickers;
         }
     } 
+    /**
+     * @param {string|[string]} pairs 
+     */
     async watchCandles(pairs) {
         if(this.#exchange.has['watchOHLCV']){
             return this.request(pairs, 'watchOHLCV', 'ohlcvs');
@@ -112,10 +139,12 @@ class PublicExchange {
         }
     } 
 
-    terminate() {
+    terminate() { 
         Object.keys(this.#subscribers).forEach(prop => {
-            Object.keys(this.#subscribers[prop]).forEach(id => {
-                this.unsubscribe(id, prop);
+            Object.keys(this.#subscribers[prop]).forEach(pair => {
+                Object.keys(this.#subscribers[prop][pair]).forEach(id => {
+                    this.unsubscribe(id, prop, pair);
+                });
             });
         });
         this.#whileLoopFlag = false;
@@ -177,34 +206,62 @@ class PublicExchange {
         }
     }
     /**
-     * 
-     * @param {String} id 
-     * @param {String} prop 
-     * @param {Function} callback 
+     * Subscribes given strategy from given exchange property changes.
+     * @param {string} id 
+     * @param {string} prop 
+     * @param {string} pair
+     * @param {function} callback 
      */
-    subscribe(id, prop, callback) { // change tthis or strat notifier to match each other
-        const alreadySubscribed = Object.keys(this.#subscribers[prop]).find(existingId => existingId === id);
-        if(!alreadySubscribed) this.#subscribers[prop][id] = callback;
+    subscribe(id, prop, pair, callback) { 
+        this.#subscribers[prop][pair][id] = callback;
     }
     /**
-     * 
-     * @param {String} id 
-     * @param {String} prop 
+     * Unsubscribes given strategy from given exchange property changes.
+     * @param {string} id 
+     * @param {string} prop 
+     * @param {string} pair
      */
-    unsubscribe(id, prop) {
-        const alreadySubscribed = Object.keys(this.#subscribers[prop]).find(existingId => existingId === id);
-        if(alreadySubscribed) delete this.#subscribers[prop][id];
-    }
-    /**
-     * 
-     * @param {String} prop 
-     */
-    notify(prop) {
-        Object.values(this.#subscribers[prop]).forEach(callback => callback());
+    unsubscribe(id, prop, pair) {
+        delete this.#subscribers[prop][pair][id]; 
     }
 
     /**
-     * 
+     * Uses Object.defineProperty on pairs on given props.
+     * @param {string|[string]} pairs 
+     * @param {string} getSetProp 
+     * @param {string} dataProp 
+     * @returns 
+     */
+    setupObservers(pairs, originalProp, dataProp) {
+        if(typeof pairs === 'string') pairs = [pairs];
+        if(!(pairs instanceof Array)) return null;
+        pairs = pairs.filter(pair => this.pairs.includes(pair));
+        if(pairs.length === 0) return null;
+
+        const exchange = this.getExchange();
+        const callbacks = (function(prop, pair) {
+            Object.values(this.#subscribers[prop][pair]) 
+                  .forEach(callback => callback());
+        }).bind(this);
+
+        for(const pair of this.pairs) {
+            this.#exchange[dataProp][pair] = null;
+            this.#subscribers[originalProp][pair] = {}; 
+            Object.defineProperty(this.#exchange[originalProp], pair, {
+                get: function() {
+                    return exchange[dataProp][pair];
+                }, 
+                set: function(value) {
+                    exchange[dataProp][pair] = value;
+                    callbacks(originalProp, pair);
+                }
+            })            
+        }
+
+    }
+
+    /**
+     * Transforms { unit: 'minute', amount: 5 } into '5m'.
      * @param {{unit:String,amount:Number}} interval 
      * @returns {String}
      */
@@ -223,9 +280,13 @@ class PublicExchange {
         this.pairs = this.#exchange.symbols;
         this.minimums = {};
         for(const pair in this.#exchange.markets) 
-            this.minimums[pair] = this.#exchange.markets[pair].limits.amount;            
+            this.minimums[pair] = this.#exchange.markets[pair].limits.amount;       
     }
 
+    /**
+     * Checks if exchange supports fetching orderbook, trades, ticker and candles.
+     * @returns {boolean}
+     */
     hasNeededMethods() {
         const testedMethods = [
             'fetchOrderBook',    
@@ -238,6 +299,10 @@ class PublicExchange {
         });
     }
 
+    /**
+     * Gets the ccxt exchange object itself.
+     * @returns {}
+     */
     getExchange() {
         return this.#exchange;
     }
@@ -245,14 +310,19 @@ class PublicExchange {
 
 export { PublicExchange };
 export default class PublicExchangeFactory {
-    static async create(name) {
-        const newExchange = new PublicExchange(name);
+    static async create(name, isTest) {
+        const newExchange = new PublicExchange(name, isTest);
         if(!newExchange.hasNeededMethods()) return null;
         try {
             await newExchange.loadMarkets();
+
+            newExchange.setupObservers(newExchange.pairs, 'tickers', 'realTickers');
+            newExchange.setupObservers(newExchange.pairs, 'trades', 'realTrades');
+            newExchange.setupObservers(newExchange.pairs, 'ohlcvs', 'realOhlcvs');
+
             return newExchange;
         } catch(error) {
-            console.error('Couldn\'t load markets', error.message);
+            console.error('Couldn\'t load markets', error);
             return null;
         }
     }

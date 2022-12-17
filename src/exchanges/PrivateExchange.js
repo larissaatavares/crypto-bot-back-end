@@ -1,7 +1,6 @@
 import ccxt from 'ccxt';
 import StrategyManager from '../strategies/StrategyManager.js';
 import User from '../database/User.js';
-import Big from 'big.js';
 
 class PrivateExchange {
     #exchange;
