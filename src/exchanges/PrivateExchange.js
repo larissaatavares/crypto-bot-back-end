@@ -194,7 +194,7 @@ class PrivateExchange {
         if(type === 'market') {
             if(this.#exchange.hasCreateMarketOrder){
                 const ticker = await this.#exchange.fetchTicker(pair);
-                price = side === 'buy' ? ticker.bid : ticker.ask;
+                price = side === 'buy' ? ticker.ask : ticker.bid;
                 return await this.#exchange.createMarketOrder(pair, side, amount, price);
             } else {
                 return StrategyManager.create(stratArgs);
@@ -225,7 +225,6 @@ class PrivateExchange {
         if(!newPrice) newPrice = price;
         if(!newAmount) newAmount = amount;
         if(side === 'buy') newAmount /= newPrice;
-        else newAmount = amount;
 
         newPrice = Number(this.#exchange.priceToPrecision(pair, newPrice));
         newAmount = Number(this.#exchange.amountToPrecision(pair, newAmount));
