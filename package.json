@@ -26,7 +26,6 @@
     "supertest": "^6.3.1"
   },
   "dependencies": {
-    "axios": "^1.2.0",
     "bcrypt": "^5.1.0",
     "body-parser": "^1.20.1",
     "ccxt": "^2.2.15",
@@ -34,7 +33,6 @@
     "express": "^4.18.2",
     "mysql2": "^2.3.3",
     "sequelize": "^6.25.8",
-    "socket.io": "^4.5.4",
     "technicalindicators": "^3.1.0"
   }
 }
