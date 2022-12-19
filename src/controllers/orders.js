@@ -3,24 +3,32 @@ import ExchangeManager from '../exchanges/ExchangeManager.js';
 
 const router = express.Router();
 
-router.get('/', (req, res) => {
-    const exchange = ExchangeManager.getPrivate();
-    // get all orders
+router.get('/', async (req, res) => {
+    const { exchangeName, userId, isTest } = req.body;
+    const exchange = await ExchangeManager.getPrivate(exchangeName, userId, isTest);
+    const allOrders = await exchange.getAllOrders();
+    return res.send(allOrders);
 });
 
-router.post('/', (req, res) => {
-    const exchange = ExchangeManager.getPrivate();
-    // post order
+router.post('/', async (req, res) => {
+    const { exchangeName, userId, isTest } = req.body;
+    const exchange = await ExchangeManager.getPrivate(exchangeName, userId, isTest);
+    const newOrder = await exchange.sendOrder(req.body);
+    return res.send(newOrder);
 });
 
-router.put('/:orderId', (req, res) => {
-    const exchange = ExchangeManager.getPrivate();
-    // edit order
+router.put('/', async (req, res) => {
+    const { exchangeName, userId, orderId, pair, isTest, newAmount, newPrice } = req.body;
+    const exchange = await ExchangeManager.getPrivate(exchangeName, userId, isTest);
+    const editedOrder = await exchange.editOrder(orderId, pair, newAmount, newPrice);
+    return res.send(editedOrder);
 });
 
-router.delete('/:orderId', (req, res) => {
-    const exchange = ExchangeManager.getPrivate();
-    // delete order
+router.delete('/', async (req, res) => {
+    const { exchangeName, orderId, pair, isTest } = req.body;
+    const exchange = await ExchangeManager.getPrivate(exchangeName, userId, isTest);
+    await exchange.cancelOrderById(orderId, pair);
+    return res.send();
 });
 
 export default router;
