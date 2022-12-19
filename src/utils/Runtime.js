@@ -16,10 +16,10 @@ class Tick {
         switch(interval.unit) {
             case 'second':    return `*/${interval.amount} * * * * *`;
             case 'minute':    return `0 */${interval.amount} * * * *`;
-            case 'hour':      return `0 0 0/${interval.amount} * * *`;
-            case 'day-month': return `0 0 0 0/${interval.amount} * *`;
-            case 'month':     return `0 0 0 0 0/${interval.amount} *`;
-            case 'day-week':  return `0 0 0 0 0 0/${interval.amount}`;
+            case 'hour':      return `0 0 */${interval.amount} * * *`;
+            case 'day-month': return `0 0 0 */${interval.amount} * *`;
+            case 'month':     return `0 0 0 0 */${interval.amount} *`;
+            case 'day-week':  return `0 0 0 0 0 */${interval.amount}`;
         }
     }
 
