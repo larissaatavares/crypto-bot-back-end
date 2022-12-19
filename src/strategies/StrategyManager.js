@@ -8,10 +8,10 @@ class StrategyManager {
 
     static async startAll() {
         const strats = await Strategy.findAll();
-        strats.forEach(async params => {
+        strats.forEach(params => {
             let data = JSON.parse(params.data);
             data.id = params.id;
-            await this.create(data, false);
+            this.create(data, false);
         });
     }
 
@@ -63,7 +63,7 @@ class StrategyManager {
     static async edit(strategyId, params) {
         const strategy = this.getById(strategyId);
         if(strategy.runtime === 'back') return false;
-        await this.#strategies[strategyId].edit(params);
+        await strategy.edit(params);
         return true;
     }
 
@@ -78,10 +78,9 @@ class StrategyManager {
         }
     }
 
-    static async delete(strategyId) {
-        Runtime.terminateJob(this.#strategies[strategyId]);
+    static delete(strategyId) {
         const strategy = this.getById(strategyId);
-        if(strategy.runtime !== 'back') await strategy.terminate();
+        Runtime.terminateJob(strategy);
         delete this.#strategies[strategyId];
     }
 
