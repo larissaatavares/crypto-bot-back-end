@@ -74,7 +74,7 @@ class Backtest {
     static #workerIds() { return Object.keys(this.#workers) }
 
     static createJob(params) {
-        const hasThreadAvailable = () => this.#jobIds().length < os.cpus().length - 1;
+        const hasThreadAvailable = () => this.#workerIds().length < os.cpus().length - 1;
         if(!params.id) params.id = String(Date.now() + this.#incrementalIds++);
 
         if(hasThreadAvailable()) {
@@ -105,7 +105,7 @@ class Backtest {
         return params.id;
     }
 
-    static terminateJob(id) { // not working
+    static terminateJob(id) { 
         if(this.#jobIds().includes(id)) {
             delete this.#jobs[id];
         } else if(this.#workerIds().includes(id)){
