@@ -121,11 +121,11 @@ export default class Runtime {
         else if(strategyObject.runtime === 'tick') await Tick.createJob(strategyObject);
         else if(strategyObject.runtime === 'back') return Backtest.createJob(strategyObject);
     }
-    static terminateJob(strategyObject) {
+    static async terminateJob(strategyObject) {
         if(strategyObject.runtime === 'live') Live.terminateJob(strategyObject);
         else if(strategyObject.runtime === 'tick') Tick.terminateJob(strategyObject);
         else if(strategyObject.runtime === 'back') Backtest.terminateJob(strategyObject.id);  
-        if(strategyObject.runtime !== 'back') strategyObject.terminate();
+        if(strategyObject.runtime !== 'back') await strategyObject.terminate();
     }
     static shutdown(strategyObject) {
         if(strategyObject.runtime === 'live') Live.terminateJob(strategyObject);

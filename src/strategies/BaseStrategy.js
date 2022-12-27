@@ -77,7 +77,7 @@ export default class BaseStrategy {
     async terminate() { 
         if(this.runtime !== 'back') {
             const strategy = await Strategy.findByPk(this.id);
-            return await strategy.destroy();
+            return strategy.destroy();
         }
     } 
 

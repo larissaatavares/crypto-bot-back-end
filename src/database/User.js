@@ -20,10 +20,12 @@ User.init({
         allowNull: false
     },
     exchangeAuthProd: {
-        type: DataTypes.JSON
+        type: DataTypes.JSON,
+        defaultValue: '{}'
     },
     exchangeAuthTest: {
-        type: DataTypes.JSON
+        type: DataTypes.JSON,
+        defaultValue: '{}'
     },
     sessionToken: {
         type: DataTypes.STRING

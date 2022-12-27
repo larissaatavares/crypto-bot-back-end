@@ -78,9 +78,9 @@ class StrategyManager {
         }
     }
 
-    static delete(strategyId) {
+    static async delete(strategyId) {
         const strategy = this.getById(strategyId);
-        Runtime.terminateJob(strategy);
+        await Runtime.terminateJob(strategy);
         delete this.#strategies[strategyId];
     }
 
