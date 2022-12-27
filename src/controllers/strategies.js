@@ -21,8 +21,7 @@ router.put('/', async (req, res) => {
 });
 
 router.delete('/', async (req, res) => {
-    const { id, params } = req.body;
-    await StrategyManager.delete(id);
+    await StrategyManager.delete(req.body.id);
     return res.send();
 });
 

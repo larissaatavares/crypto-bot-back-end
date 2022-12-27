@@ -25,7 +25,7 @@ router.put('/', async (req, res) => {
 });
 
 router.delete('/', async (req, res) => {
-    const { exchangeName, orderId, pair, isTest } = req.body;
+    const { exchangeName, orderId, userId, pair, isTest } = req.body;
     const exchange = await ExchangeManager.getPrivate(exchangeName, userId, isTest);
     await exchange.cancelOrderById(orderId, pair);
     return res.send();
