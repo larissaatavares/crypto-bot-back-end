@@ -9,8 +9,10 @@ import config from '../../config.json' assert { type: 'json' }; // use .auth
 jest.setTimeout(10000);
 
 let userId;
+let cookie;
 
 afterAll(async () => {
+    await User.destroy({ where: { email: 'test@gmail.com' }});
     await sequelize.close();
 });
 
@@ -20,7 +22,7 @@ test('Register user', async () => {
         password: 'lame password'
     });    
     expect(res.status).toBe(200);
-    expect(res.text.length).toBe(36)
+    expect(res.text.length).toBe(36);
     userId = res.text;
 });
 
@@ -31,10 +33,15 @@ test('Login', async () => {
     });
     expect(res.status).toBe(200);
     expect(res.text).toBe('Logged in!');
+    expect(res.headers['set-cookie']).toBeDefined();
+    cookie = res.headers['set-cookie'][0];
+    
 });
 
 test('Set exchange auth - test', async () => {
-    const res = await request(app).post('/auth/setExchangeAuth').send({
+    const res = await request(app).post('/auth/setExchangeAuth')
+    .set('Cookie', [cookie])
+    .send({
         userId, 
         type: 'test', 
         exchange: 'binance',
@@ -46,7 +53,9 @@ test('Set exchange auth - test', async () => {
 });
 
 test('Set exchange auth - prod', async () => {
-    const res = await request(app).post('/auth/setExchangeAuth').send({
+    const res = await request(app).post('/auth/setExchangeAuth')
+    .set('Cookie', [cookie])
+    .send({
         userId, 
         type: 'prod',
         exchange: 'binance',
@@ -58,7 +67,9 @@ test('Set exchange auth - prod', async () => {
 });
 
 test('Delete user', async () => {
-    const res = await request(app).delete('/auth').send({ id: userId });
+    const res = await request(app).delete('/auth')
+    .set('Cookie', cookie)
+    .send({ id: userId });
     const user = await User.findByPk(userId);
     expect(user).toBeNull();
 });

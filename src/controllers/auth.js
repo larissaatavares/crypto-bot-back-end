@@ -2,8 +2,22 @@ import express from 'express';
 import bcrypt from 'bcrypt';
 import User from '../database/User.js';
 import StrategyManager from '../strategies/StrategyManager.js';
+import jwt from 'jsonwebtoken';
+import config from '../../config.json' assert { type: 'json' };
 
 const router = express.Router();
+router.use((req, res, next) => {
+    const allowedPaths = ['/login', '/register'];
+    if(allowedPaths.includes(req.path)) return next();
+    const tokenCookie = req.headers.cookie.split(';')[0].split('=')[1] || undefined;
+    if(!tokenCookie) return res.status(401).send({ error: 'No token provided' });
+
+    jwt.verify(tokenCookie, config.appSecret, (err, decoded) => {
+        if(err) return res.status(401).send({ error: err.message });
+        req.body.userId = decoded.id;
+        return next(); 
+    });
+});
 
 router.post('/register', async (req, res) => {
     const { email } = req.body;
@@ -24,6 +38,8 @@ router.post('/login', async (req, res) => {
     if(!await bcrypt.compare(password, user.password))
         return res.status(400).send({ error: 'Invalid password' });
 
+    const token = jwt.sign({ id: user.id }, config.appSecret, { expiresIn: 86400 });
+    res.cookie('x-access-token', token, { secure: true, httpOnly: true, maxAge: 900000 });
     return res.send('Logged in!');
 });
 
