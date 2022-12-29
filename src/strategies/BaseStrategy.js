@@ -20,6 +20,17 @@ export default class BaseStrategy {
         this.interval = params.interval; // 'object' { unit: 'string', amount: 'number' }, eg: { unit: 'minute', amount: 5 }
         this.exchange = params.exchange; // 'string', eg: 'binance'
         this.pair = params.pair;         // 'string', eg: 'BTC/USDT'
+        const coins = this.pair.split('/');
+        this.claimed = {                 // params.claimed = 'object', eg: { USDT: 100, BTC: 0 }
+            inOrders: { 
+                [coins[0]]: 0, 
+                [coins[1]]: 0
+            }, 
+            notInUse: { 
+                [coins[0]]: params.claimed[coins[0]], 
+                [coins[1]]: params.claimed[coins[1]]
+            } 
+        };
 
         // Optional props common to all.
         this.start = params.start || 0;    // 'number' timestamp in milliseconds

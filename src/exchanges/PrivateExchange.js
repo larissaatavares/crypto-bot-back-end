@@ -8,8 +8,10 @@ class PrivateExchange {
     pairs;
     trades = {};
     orders = {};
+    userId;
 
-    constructor(name, authConfig, isTest = false) {
+    constructor(name, authConfig, userId, isTest = false) {
+        this.userId = userId;
         const config = Object.assign({
             newUpdates: false
         }, isTest ? authConfig.test : authConfig.prod); 
@@ -270,8 +272,27 @@ class PrivateExchange {
         }
     }
 
-    async getBalance() { // TODO: needs to reserve amounts for strats and not give it away to other strats
+    async getBalance() { 
         return await this.#exchange.fetchBalance();
+    }
+    async getUnclaimedBalance(coin) {
+        const strats = StrategyManager.getByUser(this.userId).filter(strat => strat.runtime !== 'back');
+        const balance = await this.getBalance();
+        let unclaimedBalance = {};
+
+        if(coin && typeof coin === 'string') coin = [coin];
+        if(!coin) coin = Object.keys(this.#exchange.currencies);
+        for(const currency of coin) {
+            const notInOrders = balance.free[currency];
+            let claimedByStrats = 0;
+            strats.forEach(strat => {
+                if(strat.claimed.notInUse[currency])
+                    claimedByStrats += strat.claimed.notInUse[currency]
+            });
+            unclaimedBalance[currency] = notInOrders - claimedByStrats;
+        }
+        
+        return unclaimedBalance;
     }
 
     isValidPair(pair) { // works
@@ -304,7 +325,7 @@ export default class PrivateExchangeFactory {
             test: JSON.parse(user.exchangeAuthTest)[name],
             prod: JSON.parse(user.exchangeAuthProd)[name]
         }
-        const newExchange = new PrivateExchange(name, authConfig, isTest);
+        const newExchange = new PrivateExchange(name, authConfig, userId, isTest);
 
         newExchange.markets = await newExchange.getExchange().loadMarkets();
         newExchange.pairs = Object.keys(newExchange.markets);

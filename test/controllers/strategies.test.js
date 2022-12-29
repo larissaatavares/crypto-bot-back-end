@@ -18,7 +18,8 @@ function baseParams() {
         interval: { unit: 'minute', amount: 1 },
         exchange: 'binance',
         pair: 'BTC/USDT',
-        isTest: true
+        isTest: true,
+        claimed: { BTC: 0, USDT: 100 }
     }
 }
 
