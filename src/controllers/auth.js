@@ -1,4 +1,5 @@
 import express from 'express';
+import { body } from 'express-validator';
 import bcrypt from 'bcrypt';
 import User from '../database/User.js';
 import StrategyManager from '../strategies/StrategyManager.js';
@@ -19,7 +20,7 @@ router.use((req, res, next) => {
     });
 });
 
-router.post('/register', async (req, res) => {
+router.post('/register', body('email').isEmail(), async (req, res) => {
     const { email } = req.body;
 
     if(await User.findOne({ where: { email }})) 
@@ -29,7 +30,7 @@ router.post('/register', async (req, res) => {
     return res.send(user.id);
 });
 
-router.post('/login', async (req, res) => {
+router.post('/login', body('email').isEmail(), async (req, res) => {
     const { email, password } = req.body;
     const user = await User.findOne({ where: { email }});
 

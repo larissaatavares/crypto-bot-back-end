@@ -2,7 +2,16 @@ import sequelize from './connection.js';
 import { DataTypes, Model } from 'sequelize';
 import bcrypt from 'bcrypt';
 
-class User extends Model {}
+class User extends Model {
+    static subscribers = [];
+    static subscribe(id, callback) { this.subscribers[id] = callback }
+    static unsubscribe(id) { delete this.subscribers[id] }
+    static notify(newId) {
+        Object.values(this.subscribers).forEach(callback => {
+            callback(newId);
+        });
+    }    
+}
 
 User.init({
     id: {
@@ -38,7 +47,8 @@ User.init({
 
 User.beforeCreate(async user => {
     const hashedPassword = await bcrypt.hash(user.password, 10);
-    user.password = hashedPassword;    
+    user.password = hashedPassword;   
+    User.notify(user.id);
 });
 
 await User.sync();
