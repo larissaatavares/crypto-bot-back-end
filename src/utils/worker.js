@@ -65,6 +65,8 @@ parentPort.on('message', async msg => {
     if(msg === 'terminate') await exit();
 });
 
+await strategyObject.init();
+
 for await (const line of file.readLines()) {
     const items = line.split(',').map(val => Number(val));
     if(isNaN(items[0])) continue;
@@ -83,11 +85,13 @@ for await (const line of file.readLines()) {
         if(new Date(candle.date)[method]() % interval.amount === 0 && Cache.date.length){ 
             const largerCandle = Cache.getCandle(); 
             Cache.reset();
-            strategyObject.run({ candle: largerCandle });
+            const shouldExit = await strategyObject.run({ candle: largerCandle });
+            if(shouldExit) await exit();
         }
         Cache.increment(candle); 
     } else {
-        strategyObject.run({ candle });
+        const shouldExit = await strategyObject.run({ candle });
+        if(shouldExit) await exit();
     }
 }
 

@@ -1,6 +1,7 @@
 import ccxt from 'ccxt';
 import StrategyManager from '../strategies/StrategyManager.js';
 import User from '../database/User.js';
+import STRATEGY_CLASSES from '../strategies/STRATEGY_CLASSES.js';
 
 class PrivateExchange {
     #exchange;
@@ -199,7 +200,7 @@ class PrivateExchange {
                 price = side === 'buy' ? ticker.ask : ticker.bid;
                 return await this.#exchange.createMarketOrder(pair, side, amount, price);
             } else {
-                return StrategyManager.create(stratArgs);
+                return await STRATEGY_CLASSES.MarketOrder(stratArgs);
             }
         } else if(type === 'stoploss') {
             return await StrategyManager.create(stratArgs);

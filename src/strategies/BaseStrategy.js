@@ -74,7 +74,7 @@ export default class BaseStrategy {
 
     async save() {
         const strategy = await Strategy.findByPk(this.id);
-        if(!strategy) return false;
+        if(!strategy || this.runtime === 'back') return false;
 
         let clone = this.#getClone();
         Object.entries(this).forEach(keyValuePair => {

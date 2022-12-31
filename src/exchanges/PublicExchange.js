@@ -255,9 +255,8 @@ class PublicExchange {
                     exchange[dataProp][pair] = value;
                     callbacks(originalProp, pair);
                 }
-            })            
+            });          
         }
-
     }
 
     /**

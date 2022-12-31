@@ -84,6 +84,7 @@ class Backtest {
             worker.on('exit', () => {
                 console.log(`Worker ${params.id} finished.`);
                 delete this.#workers[params.id];
+                StrategyManager.unlist(params.id);
                 while(hasThreadAvailable() && this.#jobIds().length) {
                     const id = Object.keys(this.#jobs)[0];
                     const stratParams = this.#jobs[id];

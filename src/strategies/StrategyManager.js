@@ -81,6 +81,10 @@ class StrategyManager {
     static async delete(strategyId) {
         const strategy = this.getById(strategyId);
         await Runtime.terminateJob(strategy);
+        this.unlist(strategyId);
+    }
+
+    static unlist(strategyId) {
         delete this.#strategies[strategyId];
     }
 
