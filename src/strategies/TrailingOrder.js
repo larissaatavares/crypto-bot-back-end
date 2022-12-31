@@ -1,11 +1,13 @@
 import BaseStrategy from './BaseStrategy.js';
 import StrategyManager from './StrategyManager.js';
 
+// Reference: https://www.investopedia.com/articles/trading/08/trailing-stop-loss.asp
+
 export default class TrailingOrder extends BaseStrategy {
-    #offset;       // number, percentage or absolute value // same as setting in old version
+    #offset;       // number, percentage or absolute value 
     #trailingType; // 'percentage' or 'absolute'
     #side;         // 'buy' or 'sell'
-    #trailingPrice;// number, trailing price, note that it's different from currentTrailingPrice
+    #trailingPrice;// number, trailing price
     #getTicker;    // reference to ticker values in exchange
     #trailingPriceHistory = []; // used to make charts later
     // [ timestamp, latestPrice, trailingPrice ], from oldest to newest.
