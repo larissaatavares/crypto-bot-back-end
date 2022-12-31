@@ -52,10 +52,10 @@ export default class TrailingOrder extends BaseStrategy {
         const currentTrailingPrice = (() => {
             if(this.#trailingType === 'percentage') {
                 if(this.#side === 'buy') return latestPrice + latestPrice / 100 * this.#offset;
-                else if(side === 'sell') return latestPrice - latestPrice / 100 * this.#offset;
+                else if(this.#side === 'sell') return latestPrice - latestPrice / 100 * this.#offset;
             } else if(this.#trailingType === 'absolute') {
                 if(this.#side === 'buy') return latestPrice + this.#offset;
-                else if(side === 'sell') return latestPrice - this.#offset;
+                else if(this.#side === 'sell') return latestPrice - this.#offset;
             }
         })();
 
@@ -64,8 +64,8 @@ export default class TrailingOrder extends BaseStrategy {
             || (this.#side === 'sell' && this.#trailingPrice < currentTrailingPrice)
         ) {
             this.#trailingPrice = currentTrailingPrice;
-            this.#trailingPriceHistory.push([ticker.timestamp, latestPrice, currentTrailingPrice]);
-            if(this.runtime !== 'back') await this.save();
+            this.#trailingPriceHistory.push([ticker.timestamp, latestPrice, this.#trailingPrice]);
+            await this.save();
         }
 
         if( (this.#side === 'buy' && this.#trailingPrice <= latestPrice)
@@ -76,6 +76,9 @@ export default class TrailingOrder extends BaseStrategy {
                 if(this.#side === 'buy') return this.claimed.notInUse[coins[1]];
                 else if(this.#side === 'sell') return this.claimed.notInUse[coins[0]];
             })();
+            const tail = this.#trailingPriceHistory.length - 1;
+            if(this.#trailingPriceHistory[tail][0] !== ticker.timestamp)
+                this.#trailingPriceHistory.push([ticker.timestamp, latestPrice, this.#trailingPrice]);
 
             if(this.runtime !== 'back') {
                 this.order = await this.privateExchange.sendOrder({
@@ -94,7 +97,7 @@ export default class TrailingOrder extends BaseStrategy {
                     symbol: this.pair,
                     type: 'market',
                     side: this.#side,
-                    price: this.#trailingPrice,
+                    price: latestPrice,
                     amount
                 };
             }
