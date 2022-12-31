@@ -10,9 +10,13 @@ class PrivateExchange {
     trades = {};
     orders = {};
     userId;
+    isTest;
+    name;
 
     constructor(name, authConfig, userId, isTest = false) {
         this.userId = userId;
+        this.isTest = isTest;
+        this.name = name;
         const config = Object.assign({
             newUpdates: false
         }, isTest ? authConfig.test : authConfig.prod); 
@@ -187,6 +191,20 @@ class PrivateExchange {
         let { pair, type, side, amount, price, stratArgs } = params;
         if(side !== 'buy' && side !== 'sell') return null;
         if(!this.isValidPair(pair)) return null;
+
+        let marketArgs;
+        if(type === 'market' && !this.#exchange.hasCreateMarketOrder) {
+            const coins = pair.split('/');
+            marketArgs = {
+                pair, side, 
+                claimed: { [coins[0]]: 0, [coins[1]]: 0 },
+                isTest: this.isTest,
+                exchange: this.name,
+                userId: this.userId
+            }
+            if(side === 'buy') marketArgs.claimed[coins[1]] = amount;
+            else if(side === 'sell') marketArgs.claimed[coins[0]] = amount;
+        }
     
         if(side === 'buy') amount /= price;
         price = Number(this.#exchange.priceToPrecision(pair, price));
@@ -200,7 +218,7 @@ class PrivateExchange {
                 price = side === 'buy' ? ticker.ask : ticker.bid;
                 return await this.#exchange.createMarketOrder(pair, side, amount, price);
             } else {
-                return await STRATEGY_CLASSES.MarketOrder(stratArgs);
+                return await STRATEGY_CLASSES.MarketOrder(marketArgs);
             }
         } else if(type === 'stoploss') {
             return await StrategyManager.create(stratArgs);
