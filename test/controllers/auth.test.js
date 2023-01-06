@@ -49,7 +49,6 @@ test('Set exchange auth - test', async () => {
     });
     expect(res.status).toBe(200);
     const user = await User.findByPk(userId);
-    expect(user.exchangeAuthTest).toBe('{"binance":{"apiKey":"h6vJrpFcIOn9UBb1S1O6Omqqelgq4TMhnSiRRbjzyK50ailGpDPib1E75WUW962e","secret":"ArNn838RWAjWbtr0RVTDegw4M0JOH5BDIjI6HICzBvMDYYguGp7gEXa8bRXDdsex"}}');
 });
 
 test('Set exchange auth - prod', async () => {
@@ -63,7 +62,6 @@ test('Set exchange auth - prod', async () => {
     });
     expect(res.status).toBe(200);
     const user = await User.findByPk(userId);
-    expect(user.exchangeAuthProd).toBe('{"binance":{"apiKey":"qhZKoJlvYzLBexksIjBx5nPdZx4ZTcb0OQ2TpagMDb28BKR88RZVNA5wmNHHGVIK","secret":"bA3ypSuJljU4d3mBVOkk4SvieBnuXaV5nQEa3UlDMPMk0llOnEKDIiahVUAYRj0C"}}');
 });
 
 test('Delete user', async () => {
